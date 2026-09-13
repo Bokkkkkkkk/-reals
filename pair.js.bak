@@ -1722,6 +1722,7 @@ case 'help': {
         console.error('Menu error:', e.message);
     }
     break;
+}
 // ==========================================
 // SUBZLK - Movie Downloader (All Timeouts)
 // ==========================================
