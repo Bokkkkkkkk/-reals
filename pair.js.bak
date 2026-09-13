@@ -1573,7 +1573,7 @@ case 'help': {
   • .cartoon2  ----- cartoon dl
   • .moviemania       — Moviedl
   • .pupilmovie  — Movie search
-  • .wrestling   — WWE search
+  • .wrestling    — WWE search
   • .sinhalatop  — Sub search
   • .rexporn     — Adult search
   • .apk         — Mod APK search
@@ -1611,7 +1611,7 @@ case 'help': {
   • .cartoon     — Cartoons.lk
   • .anime       — AnimeHeaven
   • .dubzone     — DubZone
-  • .wrestling   — WatchWrestling
+  • .wrestling  — WatchWrestling
   • .sinhalatop  — SinhalaTop
 ╰─ ─ ─ ─ ─ ─ ─ ─ ─╯
 
@@ -5333,19 +5333,27 @@ case 'sdl': {
 }
 case 'wrestling':
 case 'watchwrestling': {
+    const chatJid = msg.key.remoteJid;
+    const senderJid = msg.key.participant || msg.key.remoteJid;
+    const isGroup = chatJid.endsWith('@g.us');
+
     if (!args.length) {
-        await socket.sendMessage(sender, {
-            image: { url: sessionConfig.BOT_IMAGE || config.BOT_IMAGE },
-            caption: formatMessage(
-                '❌ ERROR',
-                '*කරුණාකර සෙවිය යුතු Wrestling Show එකේ නම ලබාදෙන්න! උදා: .wrestling Raw*',
-                `${sessionConfig.BOT_FOOTER || config.BOT_FOOTER}`
-            )
-        }, { quoted: msg });
+        const errorCaption = typeof formatMessage === 'function' 
+            ? formatMessage('❌ ERROR', '*කරුණාකර සෙවිය යුතු Wrestling Show එකේ නම ලබාදෙන්න! උදා: .wrestling Raw*', `${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`)
+            : `❌ *ERROR*\n\n*කරුණාකර සෙවිය යුතු Wrestling Show එකේ නම ලබාදෙන්න! උදා: .wrestling Raw*\n\n> ${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`;
+        
+        try {
+            await socket.sendMessage(chatJid, {
+                image: { url: sessionConfig?.BOT_IMAGE || config?.BOT_IMAGE || 'https://api.chamindu.site/logo.png' },
+                caption: errorCaption
+            }, { quoted: msg });
+        } catch {
+            await socket.sendMessage(chatJid, { text: errorCaption }, { quoted: msg });
+        }
         break;
     }
 
-    const wrestlingQuery = args.join(' ');
+    const wrestlingQuery = args.join(' ').trim();
     const API_BASE = 'https://api.chamindu.site/api/v1/wrestling/watchwrestling';
     const API_KEY = 'chama_api_11230a80e5eed3c1b80bfcc5d1773ec9';
 
@@ -5369,38 +5377,53 @@ case 'watchwrestling': {
     };
 
     try {
-        await socket.sendMessage(sender, { text: '🔍 Searching shows on WatchWrestling...' }, { quoted: msg });
+        await socket.sendMessage(chatJid, { text: '🔍 *Searching shows on WatchWrestling...*' }, { quoted: msg });
 
         const searchRes = await axios.get(`${API_BASE}/search`, {
             params: { q: wrestlingQuery, api_key: API_KEY },
-            timeout: 20000
+            timeout: 25000
         });
 
         const searchData = searchRes.data;
-        if (!searchData.status || !searchData.data || searchData.data.length === 0) {
-            await socket.sendMessage(sender, {
-                image: { url: sessionConfig.BOT_IMAGE || config.BOT_IMAGE },
-                caption: formatMessage(
-                    '❌ NO RESULTS',
-                    '*කිසිදු Wrestling Show එකක් හමු නොවීය!*',
-                    `${sessionConfig.BOT_FOOTER || config.BOT_FOOTER}`
-                )
-            }, { quoted: msg });
+        const results = searchData?.data || [];
+        if (!searchData?.status || results.length === 0) {
+            const noResText = typeof formatMessage === 'function'
+                ? formatMessage('❌ NO RESULTS', `*කිසිදු Wrestling Show එකක් හමු නොවීය! (Query: ${wrestlingQuery})*`, `${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`)
+                : `❌ *NO RESULTS*\n\n*කිසිදු Wrestling Show එකක් හමු නොවීය! (Query: ${wrestlingQuery})*\n\n> ${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`;
+
+            try {
+                await socket.sendMessage(chatJid, {
+                    image: { url: sessionConfig?.BOT_IMAGE || config?.BOT_IMAGE || 'https://api.chamindu.site/logo.png' },
+                    caption: noResText
+                }, { quoted: msg });
+            } catch {
+                await socket.sendMessage(chatJid, { text: noResText }, { quoted: msg });
+            }
             break;
         }
 
-        const showList = searchData.data.slice(0, 10);
-        let listText = `🤼 *𝗪𝗔𝗧𝗖𝗛𝗪𝗥𝗘𝗦𝗧𝗟𝗜𝗡𝗚 𝗦𝗘𝗔𝗥𝗖𝗛 : _${wrestlingQuery}_*\n╭──────●➤\n*🔢 ʀᴇ𝗽𝗹ʏ ʙᴇʟ𝗼w ɴᴜᴍʙᴇʀ*\n╰──────────●➤\n╭──────●➤\n`;
+        const showList = results.slice(0, 10);
+        let listText = `🤼 *𝗪𝗔𝗧𝗖𝗛𝗪𝗥𝗘𝗦𝗧𝗟𝗜𝗡𝗚 𝗦𝗘𝗔𝗥𝗖𝗛 : _${wrestlingQuery}_*\n╭──────●➤\n*🔢 ʀᴇᴘʟʏ ʙᴇʟᴏᴡ ɴᴜᴍʙᴇʀ (1 - ${showList.length})*\n╰──────────●➤\n╭──────●➤\n`;
 
         showList.forEach((item, index) => {
             listText += `*🧩 ${index + 1} ┃❭❭ ${item.title}*\n    ↳ (📅 ${item.date || 'N/A'})\n`;
         });
-        listText += `╰──────────●➤\n> ${sessionConfig.BOT_FOOTER || config.BOT_FOOTER}`;
+        listText += `╰──────────●➤\n> ${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`;
 
-        const searchMsg = await socket.sendMessage(sender, {
-            image: { url: showList[0].image || sessionConfig.BOT_IMAGE || config.BOT_IMAGE },
-            caption: listText
-        }, { quoted: msg });
+        let searchMsg;
+        try {
+            const thumb = showList[0]?.image || sessionConfig?.BOT_IMAGE || config?.BOT_IMAGE;
+            if (thumb) {
+                searchMsg = await socket.sendMessage(chatJid, {
+                    image: { url: thumb },
+                    caption: listText
+                }, { quoted: msg });
+            } else {
+                throw new Error('No image');
+            }
+        } catch {
+            searchMsg = await socket.sendMessage(chatJid, { text: listText }, { quoted: msg });
+        }
 
         const searchMsgID = searchMsg.key.id;
 
@@ -5410,15 +5433,19 @@ case 'watchwrestling': {
 
         const handleShowSelection = async ({ messages }) => {
             const replyMek = messages?.[0];
-            if (!replyMek?.message || replyMek.key.remoteJid !== sender) return;
+            if (!replyMek?.message || replyMek.key.remoteJid !== chatJid) return;
+
+            const replier = replyMek.key.participant || replyMek.key.remoteJid;
+            if (replier !== senderJid) return;
 
             const text = (replyMek.message.conversation || replyMek.message.extendedTextMessage?.text || '').trim();
             const isReply = replyMek.message.extendedTextMessage?.contextInfo?.stanzaId === searchMsgID;
+            const isDirectNum = !isNaN(parseInt(text)) && parseInt(text) >= 1 && parseInt(text) <= showList.length;
 
-            if (isReply) {
+            if (isReply || (!isGroup && isDirectNum)) {
                 const choice = parseInt(text) - 1;
                 if (isNaN(choice) || choice < 0 || choice >= showList.length) {
-                    await socket.sendMessage(sender, {
+                    await socket.sendMessage(chatJid, {
                         text: `❌ කරුණාකර 1 - ${showList.length} අතර අංකයක් ලබාදෙන්න!`
                     }, { quoted: replyMek });
                     return;
@@ -5430,81 +5457,126 @@ case 'watchwrestling': {
                 }
 
                 const chosenShow = showList[choice];
-                await socket.sendMessage(sender, { text: '⏳ Fetching show details & download sources...' }, { quoted: replyMek });
+                await socket.sendMessage(chatJid, { text: '⏳ *Fetching show details & download sources...*' }, { quoted: replyMek });
 
                 try {
                     const infoRes = await axios.get(`${API_BASE}/info`, {
                         params: { q: chosenShow.url, api_key: API_KEY },
-                        timeout: 20000
+                        timeout: 25000
                     });
 
                     const showData = infoRes.data?.data;
-                    const allDownloads = showData?.downloads || [];
+                    const downloads = showData?.downloads || [];
+                    const streams = showData?.streams || [];
+                    const allSources = downloads.length > 0 ? downloads : streams;
 
-                    if (!showData || allDownloads.length === 0) {
+                    if (!showData || allSources.length === 0) {
                         throw new Error('බාගත කිරීමේ links හෝ streams හමු නොවීය.');
                     }
 
-                    let infoText = `🔥 *${showData.title}*\n\n`;
-                    if (showData.show_info?.Date) infoText += `📅 *Date:* ${showData.show_info.Date}\n`;
+                    let infoText = `🔥 *${showData.title || chosenShow.title}*\n\n`;
+                    if (showData.date) infoText += `📅 *Date:* ${showData.date}\n`;
+                    if (showData.show_info?.Date) infoText += `📅 *Broadcast Date:* ${showData.show_info.Date}\n`;
                     if (showData.show_info?.Location) infoText += `📍 *Location:* ${showData.show_info.Location}\n`;
-                    if (showData.show_info?.Broadcast) infoText += `📺 *Network:* ${showData.show_info.Broadcast}\n\n`;
+                    if (showData.show_info?.Broadcast) infoText += `📺 *Network:* ${showData.show_info.Broadcast}\n`;
+                    if (showData.description) infoText += `📝 *Info:* _${showData.description.substring(0, 150)}..._\n`;
 
-                    infoText += `*Available Download Sources / Qualities:*\n`;
-                    allDownloads.forEach((dl, i) => {
-                        infoText += `*${i + 1}.* [${dl.quality || 'HD'}] ${dl.label || dl.name}\n`;
+                    infoText += `\n*⚡ Available Download Sources / Qualities:*\n`;
+                    allSources.forEach((dl, i) => {
+                        const qual = dl.quality || 'HD';
+                        const hoster = dl.hoster || (dl.url?.includes('gofile') ? 'Gofile' : dl.url?.includes('multiup') ? 'MultiUp' : dl.url?.includes('1fichier') ? '1fichier' : dl.url?.includes('vikingfile') ? 'VikingFile' : dl.server || 'Direct');
+                        infoText += `*${i + 1}.* 📥 *[${qual}]* ${hoster} ${dl.name ? `(${dl.name})` : ''}\n`;
                     });
-                    infoText += `\n👉 *බාගත කිරීමට අදාළ Source අංකය Reply කරන්න.*`;
+                    infoText += `\n👉 *බාගත කිරීමට හෝ Link එක ලබා ගැනීමට අදාළ අංකය Reply කරන්න.*`;
 
-                    const infoMsg = await socket.sendMessage(sender, {
-                        image: { url: showData.image || chosenShow.image },
-                        caption: infoText
-                    }, { quoted: replyMek });
+                    let infoMsg;
+                    try {
+                        const imgUrl = showData.image || chosenShow.image;
+                        if (imgUrl) {
+                            infoMsg = await socket.sendMessage(chatJid, {
+                                image: { url: imgUrl },
+                                caption: infoText
+                            }, { quoted: replyMek });
+                        } else {
+                            throw new Error('No image');
+                        }
+                    } catch {
+                        infoMsg = await socket.sendMessage(chatJid, { text: infoText }, { quoted: replyMek });
+                    }
 
                     const infoMsgID = infoMsg.key.id;
 
                     const handleDownloadSelection = async ({ messages: dlMessages }) => {
                         const dlMek = dlMessages?.[0];
-                        if (!dlMek?.message || dlMek.key.remoteJid !== sender) return;
+                        if (!dlMek?.message || dlMek.key.remoteJid !== chatJid) return;
+
+                        const dlReplier = dlMek.key.participant || dlMek.key.remoteJid;
+                        if (dlReplier !== senderJid) return;
 
                         const dlChoiceText = (dlMek.message.conversation || dlMek.message.extendedTextMessage?.text || '').trim();
                         const isDlReply = dlMek.message.extendedTextMessage?.contextInfo?.stanzaId === infoMsgID;
+                        const isDirectDlNum = !isNaN(parseInt(dlChoiceText)) && parseInt(dlChoiceText) >= 1 && parseInt(dlChoiceText) <= allSources.length;
 
-                        if (isDlReply) {
+                        if (isDlReply || (!isGroup && isDirectDlNum)) {
                             const dlIdx = parseInt(dlChoiceText) - 1;
-                            if (isNaN(dlIdx) || dlIdx < 0 || dlIdx >= allDownloads.length) {
-                                await socket.sendMessage(sender, { 
-                                    text: `❌ කරුණාකර 1 - ${allDownloads.length} අතර අංකයක් ලබාදෙන්න!` 
+                            if (isNaN(dlIdx) || dlIdx < 0 || dlIdx >= allSources.length) {
+                                await socket.sendMessage(chatJid, { 
+                                    text: `❌ කරුණාකර 1 - ${allSources.length} අතර අංකයක් ලබාදෙන්න!` 
                                 }, { quoted: dlMek });
                                 return;
                             }
 
                             clearAllWrestlingListeners();
-                            const selectedSource = allDownloads[dlIdx];
+                            const selectedSource = allSources[dlIdx];
+                            const sourceUrl = selectedSource.direct_link || selectedSource.link || selectedSource.url;
+                            const hosterName = selectedSource.hoster || (sourceUrl?.includes('gofile') ? 'Gofile (High Speed)' : sourceUrl?.includes('multiup') ? 'MultiUp' : sourceUrl?.includes('1fichier') ? '1fichier' : sourceUrl?.includes('vikingfile') ? 'VikingFile' : selectedSource.server || 'Direct');
 
-                            await socket.sendMessage(sender, { react: { text: '📥', key: dlMek.key } });
+                            await socket.sendMessage(chatJid, { react: { text: '📥', key: dlMek.key } });
 
-                            await socket.sendMessage(sender, { 
-                                text: `⏳ *Processing Download:* ${selectedSource.label || selectedSource.name}\n_කරුණාකර ටික වේලාවක් රැඳී සිටින්න, ෆိုင် එක සූදානම් වෙමින් පවතී..._` 
+                            const streamUrl = streams.length > 0 ? streams[0].url : null;
+                            const isDirectVideoFile = sourceUrl && (sourceUrl.endsWith('.mp4') || sourceUrl.endsWith('.mkv'));
+
+                            // Direct mp4 video file නම් document ලෙස යැවීමට උත්සාහ කරයි
+                            if (isDirectVideoFile) {
+                                try {
+                                    await socket.sendMessage(chatJid, { 
+                                        text: `⏳ *Uploading Video Document:* ${selectedSource.quality || 'HD'}...\n_කරුණාකර මඳ වේලාවක් රැඳී සිටින්න..._` 
+                                    }, { quoted: dlMek });
+
+                                    await socket.sendMessage(chatJid, {
+                                        document: { url: sourceUrl },
+                                        mimetype: 'video/mp4',
+                                        fileName: `${showData.title || chosenShow.title} - ${selectedSource.quality || 'HD'}.mp4`,
+                                        caption: `✅ *WRESTLING SHOW DOWNLOADED*\n\n🤼 *Show:* ${showData.title || chosenShow.title}\n📌 *Quality:* ${selectedSource.quality || 'HD'}\n> ${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`
+                                    }, { quoted: dlMek });
+
+                                    await socket.sendMessage(chatJid, { react: { text: '✅', key: dlMek.key } });
+                                    return;
+                                } catch (docErr) {
+                                    // Error වුවහොත් fallback card එක යවයි
+                                }
+                            }
+
+                            // 1-Click High-Speed Download Card
+                            let cardText = `✅ *WRESTLING SHOW DOWNLOAD READY*\n\n`;
+                            cardText += `🤼 *Show:* ${showData.title || chosenShow.title}\n`;
+                            cardText += `📌 *Quality:* ${selectedSource.quality || 'HD'}\n`;
+                            cardText += `🌐 *Server / Hoster:* ${hosterName}\n\n`;
+                            cardText += `🚀 *Download Link:* \n🔗 ${sourceUrl}\n\n`;
+
+                            if (streamUrl) {
+                                cardText += `📺 *Online Stream Link:* \n🔗 ${streamUrl}\n\n`;
+                            }
+
+                            cardText += `💡 _(Wrestling Shows 2GB - 5GB අතර විශාල ගොනු වන බැවින් WhatsApp හරහා Document එකක් ලෙස යැවීමේදී corrupt වීම/500b වීම වැළැක්වීමට, ඉහත Direct Link එකෙන් Browser හෝ ADM/IDM මඟින් Full Speed එකෙන්ම සම්පූර්ණ Show එක Download කරගත හැක.)_\n\n`;
+                            cardText += `> ${sessionConfig?.BOT_FOOTER || config?.BOT_FOOTER || ''}`;
+
+                            await socket.sendMessage(chatJid, {
+                                text: cardText,
+                                linkPreview: false
                             }, { quoted: dlMek });
 
-                            try {
-                                const directLink = selectedSource.direct_link || selectedSource.url;
-
-                                // ගොනුවේ ප්‍රමාණය විශාල (GBs) විය හැකි නිසා හෝ direct video URL එකක් නම් document ලෙස යැවීම
-                                await socket.sendMessage(sender, {
-                                    document: { url: directLink },
-                                    mimetype: 'video/mp4',
-                                    fileName: `${showData.title} - ${selectedSource.quality || 'HD'}.mp4`,
-                                    caption: `✅ *WRESTLING SHOW DOWNLOADED*\n\n🤼 *Show:* ${showData.title}\n📌 *Quality:* ${selectedSource.quality || 'HD'}\n> ${sessionConfig.BOT_FOOTER || config.BOT_FOOTER}`
-                                }, { quoted: dlMek });
-
-                                await socket.sendMessage(sender, { react: { text: '✅', key: dlMek.key } });
-                            } catch (uploadErr) {
-                                await socket.sendMessage(sender, { 
-                                    text: `❌ ගොනුව යැවීමේදී දෝෂයක් ඇති විය: ${uploadErr.message}\n\n🔗 Web/Stream Link එක: ${selectedSource.url}` 
-                                }, { quoted: dlMek });
-                            }
+                            await socket.sendMessage(chatJid, { react: { text: '✅', key: dlMek.key } });
                         }
                     };
 
@@ -5513,7 +5585,7 @@ case 'watchwrestling': {
 
                 } catch (infoErr) {
                     clearAllWrestlingListeners();
-                    await socket.sendMessage(sender, { text: `❌ WatchWrestling Info Error: ${infoErr.message}` }, { quoted: replyMek });
+                    await socket.sendMessage(chatJid, { text: `❌ WatchWrestling Info Error: ${infoErr.message}` }, { quoted: replyMek });
                 }
             }
         };
@@ -5523,13 +5595,12 @@ case 'watchwrestling': {
 
     } catch (err) {
         clearAllWrestlingListeners();
-        await socket.sendMessage(sender, {
+        await socket.sendMessage(chatJid, {
             text: `❌ Error: ${err.message}`
         }, { quoted: msg });
     }
     break;
 }
-
                 case 'vv':
 case '❤️': {
     const quoted = msg.message.extendedTextMessage?.contextInfo?.quotedMessage;
